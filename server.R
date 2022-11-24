@@ -14,6 +14,9 @@ data_alb <- discographie %>% group_by(artist_name,artist_id,album_name,album_id)
   select(danceability,energy,speechiness,acousticness,valence,instrumentalness) %>% 
   mutate_all(~median(.)) %>% distinct()
 
+data_ttl <- discographie %>%  
+  select(artist_name,track_name,danceability,energy,speechiness,acousticness,valence,instrumentalness) %>% distinct
+
 
 shinyServer(function(input, output) {
 
@@ -21,8 +24,9 @@ shinyServer(function(input, output) {
   output$sidebarpanel <- renderUI({
     sidebarMenu(
       menuItem("Accueil", tabName = "dashboard", icon = icon("dashboard")),
-      menuItem("Album", tabName = "second", icon = icon("th"))
-     # menuItem("Chansons", tabName = "third", icon = icon("th"))
+      menuItem("Album", tabName = "second", icon = icon("th")),
+      menuItem("Chansons", tabName = "third", icon = icon("th")),
+      menuItem("Relative", tabName = "fourth", icon = icon("th"))
     )
   }
   )
@@ -66,7 +70,31 @@ shinyServer(function(input, output) {
                   uiOutput("second_sel")
                   )
                 )
+              ),
+      
+      #Third tab
+      tabItem(tabName = "third",
+              fluidPage(
+                fluidRow(
+                  selectInput("artist", label = ("Artiste"), 
+                              choices = albums_aes %>% group_by(artist_name) %>% select(artist_name) %>% distinct, 
+                              selected = 1)),
+                
+                fluidRow(
+                  uiOutput("third_sel")
+                )
               )
+      ),
+      tabItem(tabName ="fourth",
+              fluidPage(
+                fluidRow(
+                  selectInput("selecta", label = h3("Artist Relatif"), 
+                              choices = albums_aes %>% group_by(artist_name) %>% select(artist_name) %>% distinct, 
+                              selected = 1),
+                  column(12,  uiOutput("Rela")),
+                )
+              )
+      )
       )
   })
     
@@ -88,7 +116,7 @@ shinyServer(function(input, output) {
     
     lapply(1:as.integer(nrow(sub_alb())), function(i) {
         column(2,
-               tags$div(class="alb", style="width:100%;",
+               tags$div(class="rela", style="width:100%; height:100%;",
                 tags$span(sub_alb()[i,] %>% select(album_name) %>% as.character(),style="width:10px"),
                 tags$a(href=sub_alb()[i,] %>% select(album_url) %>% as.character(),target="_blank", 
                        tags$img(src=sub_alb()[i,] %>% select(img) %>% as.character(),height=150,width=150))
@@ -99,7 +127,21 @@ shinyServer(function(input, output) {
   })
   
   
-
+  output$Rela <- renderUI({
+    sub_ttl <<- reactive(related %>% inner_join(liste_artiste %>% select(name,id),by=c("relative"="id")) %>%
+                           filter(name.y == input$selecta))
+    
+    lapply(1:as.integer(nrow(sub_ttl())), function(i) {
+      column(2,
+             tags$div(class="rela", style="width:100%;",
+                      tags$span(sub_ttl()[i,] %>% select(name.x) %>% as.character(),style="width:10px"),
+                      tags$a(href=sub_ttl()[i,] %>% select(external_urls.spotify) %>% as.character(),target="_blank",
+                             tags$img(src=sub_ttl()[i,] %>% select(img) %>% as.character(),height=150,width=150))
+             )
+      )
+      
+    })
+  })
 
   
   output$second_sel<- renderUI({
@@ -127,6 +169,21 @@ shinyServer(function(input, output) {
     )
   })
   
+  output$third_sel<- renderUI({
+    fluidPage(
+      fluidRow(
+        selectInput("ttl", label = "Titre", 
+                    choices = discographie %>% filter(artist_name == input$artist) %>% select(track_name) %>% distinct, 
+                    selected = 1)
+      ),
+      fluidRow(
+        column(12,plotOutput("modeKeyLightTrack"))
+      ),
+      fluidRow(
+        column(12,plotOutput("chartalbTrack"))
+      )
+    )
+  })
   
   
   output$track <- renderDataTable(discographie %>% filter(album_name ==input$alb,artist_name ==input$artiste) %>% arrange(track_number) %>% select(track_name,external_urls.spotify) %>% distinct())
@@ -236,6 +293,40 @@ shinyServer(function(input, output) {
     A
   })
   
+  
+  output$chartalbTrack <- renderPlot({
+    data_ttl %>% 
+      filter(artist_name== input$artist,track_name==input$ttl) %>% 
+      ungroup %>% 
+      rename("group" = "track_name") %>% 
+      select(-1,) %>% 
+      mutate_at(vars(-group), ~as.numeric(.)) %>%
+      ggradar(
+        grid.min = 0,
+        grid.max=1,
+        group.line.width = 1, 
+        group.point.size = 1,
+        gridline.min.linetype = 1,
+        gridline.mid.linetype = 2,
+        gridline.max.linetype = 1,
+        group.colours = c("#892CB5"),
+        gridline.mid.colour = "grey",
+        plot.legend=F) -> A
+    A
+  })
+  
+  output$modeKeyLightTrack <- renderPlot({
+    discographie %>% 
+      filter(artist_name==input$artist) %>% 
+      group_by(key_mode) %>% 
+      ggplot(aes(x=key_mode, fill=track_name))+
+      geom_bar(width=0.5)+
+      labs(x="Key", y="Number of Songs") +
+      theme_minimal()+
+      ggtitle("Part des accords de l'album sur l'ensemble des accords de l'artiste")+
+      gghighlight(track_name == input$ttl) -> A
+    A
+  })
   
   output$DELight <- renderPlot({
     discographie %>% 
