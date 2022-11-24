@@ -323,7 +323,7 @@ shinyServer(function(input, output) {
       geom_bar(width=0.5)+
       labs(x="Key", y="Number of Songs") +
       theme_minimal()+
-      ggtitle("Part des accords de l'album sur l'ensemble des accords de l'artiste")+
+      ggtitle("Part des accords de la chanson sur l'ensemble des accords de l'artiste")+
       gghighlight(track_name == input$ttl) -> A
     A
   })
