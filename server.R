@@ -8,14 +8,11 @@ library(plotly)
 library(ggthemes)
 library(gghighlight)
 library(RColorBrewer)
-library(scales)
-library(ggTimeSeries)
-library(fmsb)
 library(ggradar)
 
 data_alb <- discographie %>% group_by(artist_name,artist_id,album_name,album_id) %>% 
   select(danceability,energy,speechiness,acousticness,valence,instrumentalness) %>% 
-  mutate_all(~mean(.)) %>% distinct()
+  mutate_all(~median(.)) %>% distinct()
 
 
 shinyServer(function(input, output) {
@@ -24,9 +21,8 @@ shinyServer(function(input, output) {
   output$sidebarpanel <- renderUI({
     sidebarMenu(
       menuItem("Accueil", tabName = "dashboard", icon = icon("dashboard")),
-      menuItem("Album", tabName = "second", icon = icon("th")),
-      menuItem("Chansons", tabName = "third", icon = icon("th")),
-      menuItem("Comparaison", tabName = "fourth", icon = icon("th"))
+      menuItem("Album", tabName = "second", icon = icon("th"))
+     # menuItem("Chansons", tabName = "third", icon = icon("th"))
     )
   }
   )
@@ -49,7 +45,9 @@ shinyServer(function(input, output) {
                 br(),
                 fluidRow(
                   column(12,plotlyOutput("dance"))
-                )
+                ),
+                fluidRow(column(12,plotOutput("modeKey"))),
+                fluidRow(column(12,plotOutput("DE")))
               )
       ),
       
@@ -118,6 +116,12 @@ shinyServer(function(input, output) {
       column(12,plotlyOutput("valencelight"))
     ),
     fluidRow(
+      column(12,plotOutput("DELight"))
+    ),
+    fluidRow(
+      column(12,plotOutput("modeKeyLight"))
+    ),
+    fluidRow(
       column(12,plotOutput("chartalb"))
     )
     )
@@ -140,11 +144,9 @@ shinyServer(function(input, output) {
       geom_density(alpha=0.5)+
       labs(x="Danceability", y="Density",color="Albums",fill="Albums") +
       theme_minimal()+
-      ggtitle("Distribution of Danceability Data") ->A
+      ggtitle("Distribution de la Dansabilité") ->A
       ggplotly(A,tooltip=c("text","danceability"))
 })
-  
-  
   
   output$dancelight <- renderPlotly({
     discographie %>% 
@@ -156,28 +158,61 @@ shinyServer(function(input, output) {
       theme_minimal()+
       scale_fill_brewer(palette="Set2")+
       scale_color_brewer(palette="Set2")+
-      ggtitle("Distribution de la Danceability") +
+      ggtitle("Distribution de la Dansabilité") +
       gghighlight(album_name == input$alb) ->A
     ggplotly(A,tooltip = c("danceability"))
   })
   
+  output$DE <- renderPlot({
+    discographie %>% 
+      filter(artist_name==input$select) %>% 
+      ggplot(aes(x=danceability,y=energy,color=album_name)) +
+      geom_point() -> A
+    A
+  })
   
+  output$modeKey <- renderPlot({
+    discographie %>% 
+      filter(artist_name==input$select) %>% 
+      group_by(key_mode) %>% 
+      ggplot(aes(x=key_mode, fill=album_name))+
+      geom_bar(width=0.5)+
+      labs(x="Key", y="Number of Songs") +
+      theme_minimal()+
+      ggtitle("Nombre d'accords par Album") +
+      theme(legend.position ="bottom")->A
+    
+    A
+  })
   
   
   output$valencelight <- renderPlotly({
     discographie %>% 
       filter(artist_name == input$artiste,album_name == input$alb) %>% 
-      arrange(track_number) %>% 
+      arrange(track_number,album_name) %>% 
       ggplot(aes(x=track_name,y=valence,fill=track_name)) +
-      geom_col(alpha=0.5)+
+      geom_col()+
       labs(x="", y="Valence",color="Track",fill="Track") +
       theme_minimal()+
       theme(axis.text.x = element_blank())+
-      ggtitle("Valence pour chaque Chansons") ->A
+      ggtitle("Valence des Chansons") ->A
     
     ggplotly(A,tooltip = c("valence","track_name"))
   })
   
+  
+  output$modeKeyLight <- renderPlot({
+    discographie %>% 
+      filter(artist_name==input$artiste) %>% 
+      group_by(key_mode) %>% 
+      ggplot(aes(x=key_mode, fill=album_name))+
+      geom_bar(width=0.5)+
+      labs(x="Key", y="Number of Songs") +
+      theme_minimal()+
+      ggtitle("Part des accords de l'album sur l'ensemble des accords de l'artiste")+
+      gghighlight(album_name == input$alb) -> A
+    A
+  })
   
   
   output$chartalb <- renderPlot({
@@ -192,13 +227,23 @@ shinyServer(function(input, output) {
         grid.max=1,
         group.line.width = 1, 
         group.point.size = 1,
-        group.colours = c("#1DB954"),
-        background.circle.colour = "white",
+        gridline.min.linetype = 1,
+        gridline.mid.linetype = 2,
+        gridline.max.linetype = 1,
+        group.colours = c("#892CB5"),
         gridline.mid.colour = "grey",
-        legend.position = "bottom") -> A
+        plot.legend=F) -> A
     A
   })
   
+  
+  output$DELight <- renderPlot({
+    discographie %>% 
+      filter(artist_name==input$artiste,album_name == input$alb) %>% 
+      ggplot(aes(x=danceability,y=energy,color=track_name)) +
+      geom_point(size=1.5) -> A
+    A
+  })
   
   
   
