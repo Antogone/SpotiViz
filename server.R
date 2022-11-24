@@ -10,16 +10,23 @@ library(gghighlight)
 library(RColorBrewer)
 library(scales)
 library(ggTimeSeries)
+library(fmsb)
+library(ggradar)
+
+data_alb <- discographie %>% group_by(artist_name,artist_id,album_name,album_id) %>% 
+  select(danceability,energy,speechiness,acousticness,valence,instrumentalness) %>% 
+  mutate_all(~mean(.)) %>% distinct()
+
 
 shinyServer(function(input, output) {
 
 #SIDEBAR MENU 
   output$sidebarpanel <- renderUI({
     sidebarMenu(
-      menuItem("Main Page", tabName = "dashboard", icon = icon("dashboard")),
-      menuItem("Second Page", tabName = "second", icon = icon("th")),
-      menuItem("Third Page", tabName = "third", icon = icon("th")),
-      menuItem("Fourth Page", tabName = "fourth", icon = icon("th"))
+      menuItem("Accueil", tabName = "dashboard", icon = icon("dashboard")),
+      menuItem("Album", tabName = "second", icon = icon("th")),
+      menuItem("Chansons", tabName = "third", icon = icon("th")),
+      menuItem("Comparaison", tabName = "fourth", icon = icon("th"))
     )
   }
   )
@@ -106,6 +113,12 @@ shinyServer(function(input, output) {
       ),
     fluidRow(
       column(12,plotlyOutput("dancelight"))
+    ),
+    fluidRow(
+      column(12,plotlyOutput("valencelight"))
+    ),
+    fluidRow(
+      column(12,plotOutput("chartalb"))
     )
     )
   })
@@ -113,20 +126,6 @@ shinyServer(function(input, output) {
   
   
   output$track <- renderDataTable(discographie %>% filter(album_name ==input$alb,artist_name ==input$artiste) %>% arrange(track_number) %>% select(track_name,external_urls.spotify) %>% distinct())
-  
-  
-  output$stata <- renderUI({
-      fluidRow(
-        column(4, span("1")),
-               column(4, span("2"))
-      )
-      fluidRow(
-        column(4, span("3")),
-        column(4,span("4"))
-      )
-    
-  })
-  
   
   output$tracklist <- renderUI({
     selectInput("tr", label = "track", 
@@ -157,10 +156,49 @@ shinyServer(function(input, output) {
       theme_minimal()+
       scale_fill_brewer(palette="Set2")+
       scale_color_brewer(palette="Set2")+
-      ggtitle("Distribution of Danceability Data") +
+      ggtitle("Distribution de la Danceability") +
       gghighlight(album_name == input$alb) ->A
     ggplotly(A,tooltip = c("danceability"))
   })
+  
+  
+  
+  
+  output$valencelight <- renderPlotly({
+    discographie %>% 
+      filter(artist_name == input$artiste,album_name == input$alb) %>% 
+      arrange(track_number) %>% 
+      ggplot(aes(x=track_name,y=valence,fill=track_name)) +
+      geom_col(alpha=0.5)+
+      labs(x="", y="Valence",color="Track",fill="Track") +
+      theme_minimal()+
+      theme(axis.text.x = element_blank())+
+      ggtitle("Valence pour chaque Chansons") ->A
+    
+    ggplotly(A,tooltip = c("valence","track_name"))
+  })
+  
+  
+  
+  output$chartalb <- renderPlot({
+      data_alb %>% 
+      filter(artist_name== input$artiste,album_name==input$alb) %>% 
+      ungroup %>% 
+      rename("group" = "album_name") %>% 
+      select(-1,-2,-4) %>% 
+      mutate_at(vars(-group), ~as.numeric(.)) %>%
+      ggradar(
+        grid.min = 0,
+        grid.max=1,
+        group.line.width = 1, 
+        group.point.size = 1,
+        group.colours = c("#1DB954"),
+        background.circle.colour = "white",
+        gridline.mid.colour = "grey",
+        legend.position = "bottom") -> A
+    A
+  })
+  
   
   
   
