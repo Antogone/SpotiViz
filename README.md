@@ -3,7 +3,7 @@ UE VISUALISATION - PROJET
 
 Data analyse of the music (track, artist and album) based on the data in data_final, data_full or data_wckd collected via the Spotify API via my Account
 
-
+#Partie Accueil : Information général sur l'artiste
 <img width="1447" alt="image" src="https://user-images.githubusercontent.com/64025310/235812988-c653bc23-0ae0-4a5b-80cb-eafd6a82f0a5.png">
 <img width="1174" alt="image" src="https://user-images.githubusercontent.com/64025310/235813106-a81ba10e-dd07-4c87-935b-67a687d4fdb0.png">
 <img width="833" alt="image" src="https://user-images.githubusercontent.com/64025310/235813145-2f308e6f-c656-4abc-a087-83768091490a.png">
